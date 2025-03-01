@@ -8,7 +8,7 @@
  */
 
 import { NextStudio } from 'next-sanity/studio'
-import config from '../../../sanity/config'  // Updated import path
+import config from '../../../sanity/config'  // Corrected import path
 
 // Force static rendering for better performance with Studio
 export const dynamic = 'force-static'

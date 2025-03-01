@@ -1,7 +1,7 @@
 // components/global/Header.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -27,23 +27,27 @@ export default function Header({ navigation, logo }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   
+  // Handle scroll effect with useCallback
+  const handleScroll = useCallback(() => {
+    setIsScrolled(window.scrollY > 20);
+  }, []);
+  
+  // Handle escape key to close menu with useCallback
+  const handleEscape = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setIsMenuOpen(false);
+    }
+  }, []);
+  
   // Handle scroll effect
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [handleScroll]);
   
   // Lock body scroll when mobile menu is open
   useEffect(() => {
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = isMenuOpen ? 'hidden' : '';
     
     return () => {
       document.body.style.overflow = '';
@@ -52,15 +56,12 @@ export default function Header({ navigation, logo }: HeaderProps) {
   
   // Handle escape key to close menu
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsMenuOpen(false);
-      }
-    };
-    
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, []);
+  }, [handleEscape]);
+
+  // Toggle menu function
+  const toggleMenu = () => setIsMenuOpen(prev => !prev);
 
   return (
     <header
@@ -113,4 +114,43 @@ export default function Header({ navigation, logo }: HeaderProps) {
           <button
             type="button"
             className="md:hidden relative z-10"
-            onClick={() => setIsMenuOpen
+            onClick={toggleMenu}
+            aria-expanded={isMenuOpen}
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+          >
+            {isMenuOpen ? (
+              <X className={isScrolled ? 'text-gray-800' : 'text-white'} />
+            ) : (
+              <Menu className={isScrolled ? 'text-gray-800' : 'text-white'} />
+            )}
+          </button>
+          
+          {/* Mobile Menu */}
+          {isMenuOpen && (
+            <div className="fixed inset-0 bg-white z-40 md:hidden">
+              <div className="container mx-auto px-4 pt-20 pb-6">
+                <nav>
+                  <ul className="flex flex-col space-y-6">
+                    {navigation.map((item) => (
+                      <li key={item._key}>
+                        <Link
+                          href={item.href}
+                          target={item.isExternal ? '_blank' : undefined}
+                          rel={item.isExternal ? 'noopener noreferrer' : undefined}
+                          className="text-lg font-medium text-gray-800 hover:text-blue-600"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          {item.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

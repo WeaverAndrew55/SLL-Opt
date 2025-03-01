@@ -1,19 +1,20 @@
-// sanity-studio/schema-generator.ts
-// Update the import path to match your project structure
-import { SiteSettings } from '../src/types/sanity';
+// lib/utils/schema.ts
+import { SiteSettings, Article, BreadcrumbItem } from '@/types/sanity';
 
 // Base URL of the website
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.sociallalunchlabs.com';
 
+// Default logo path
+const DEFAULT_LOGO = `${siteUrl}/images/logo.png`;
+
 /**
  * Generates the organization schema for JSON-LD
  */
-export function generateOrganizationSchema(siteSettings: SiteSettings) {
-  // Get the company logo URL from site settings
-  const logo = siteSettings?.logo?.url || `${siteUrl}/images/logo.png`;
-  
-  // Get the company social media profiles
+export function generateOrganizationSchema(siteSettings?: SiteSettings) {
+  const logo = siteSettings?.logo?.url || DEFAULT_LOGO;
   const socialProfiles = siteSettings?.socialLinks?.map(link => link.url) || [];
+  const contactEmail = siteSettings?.contactInfo?.email || 'contact@sociallalunchlabs.com';
+  const contactPhone = siteSettings?.contactInfo?.phone || '+1-123-456-7890';
   
   return {
     '@context': 'https://schema.org',
@@ -25,9 +26,9 @@ export function generateOrganizationSchema(siteSettings: SiteSettings) {
     contactPoint: [
       {
         '@type': 'ContactPoint',
-        telephone: '+1-123-456-7890', // Replace with actual phone number from settings
+        telephone: contactPhone,
         contactType: 'customer service',
-        email: 'contact@sociallalunchlabs.com' // Replace with actual email from settings
+        email: contactEmail
       }
     ]
   };
@@ -53,7 +54,7 @@ export function generateWebsiteSchema(siteSettings?: SiteSettings) {
 /**
  * Generates the breadcrumb schema for JSON-LD
  */
-export function generateBreadcrumbSchema(items: Array<{ name: string; url: string }>) {
+export function generateBreadcrumbSchema(items: BreadcrumbItem[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -61,7 +62,7 @@ export function generateBreadcrumbSchema(items: Array<{ name: string; url: strin
       '@type': 'ListItem',
       position: index + 1,
       name: item.name,
-      item: item.url
+      item: item.url.startsWith('http') ? item.url : `${siteUrl}${item.url}`
     }))
   };
 }
@@ -69,8 +70,12 @@ export function generateBreadcrumbSchema(items: Array<{ name: string; url: strin
 /**
  * Generates the article schema for blog posts
  */
-export function generateArticleSchema(article: any) {
+export function generateArticleSchema(article: Article) {
   if (!article) return null;
+  
+  const authorUrl = article.author?.slug?.current 
+    ? `${siteUrl}/team/${article.author.slug.current}` 
+    : `${siteUrl}/about`;
   
   return {
     '@context': 'https://schema.org',
@@ -82,14 +87,14 @@ export function generateArticleSchema(article: any) {
     author: article.author ? {
       '@type': 'Person',
       name: article.author.name,
-      url: `${siteUrl}/about` // Or a specific author page if available
+      url: authorUrl
     } : undefined,
     publisher: {
       '@type': 'Organization',
       name: 'Social Launch Labs',
       logo: {
         '@type': 'ImageObject',
-        url: `${siteUrl}/images/logo.png` // Replace with actual logo URL
+        url: DEFAULT_LOGO
       }
     },
     description: article.excerpt || '',
@@ -104,43 +109,43 @@ export function generateArticleSchema(article: any) {
  * Generates a LocalBusiness schema if applicable
  */
 export function generateLocalBusinessSchema(siteSettings?: SiteSettings) {
-  // This is optional and only needed if the business has a physical location
+  const address = siteSettings?.contactInfo?.address;
+  const coordinates = siteSettings?.contactInfo?.coordinates;
+  const businessHours = siteSettings?.businessHours || [
+    {
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      opens: '09:00',
+      closes: '17:00'
+    }
+  ];
   
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     name: siteSettings?.siteName || 'Social Launch Labs',
-    image: siteSettings?.logo?.url || `${siteUrl}/images/logo.png`,
+    image: siteSettings?.logo?.url || DEFAULT_LOGO,
     '@id': siteUrl,
     url: siteUrl,
-    telephone: '+1-123-456-7890', // Replace with actual phone number
+    telephone: siteSettings?.contactInfo?.phone || '+1-123-456-7890',
     address: {
       '@type': 'PostalAddress',
-      streetAddress: '123 Main St', // Replace with actual address
-      addressLocality: 'City', // Replace with actual city
-      addressRegion: 'State', // Replace with actual state
-      postalCode: '12345', // Replace with actual postal code
-      addressCountry: 'US' // Replace with actual country code
+      streetAddress: address?.street || '123 Main St',
+      addressLocality: address?.city || 'City',
+      addressRegion: address?.state || 'State',
+      postalCode: address?.postalCode || '12345',
+      addressCountry: address?.country || 'US'
     },
-    geo: {
+    geo: coordinates ? {
       '@type': 'GeoCoordinates',
-      latitude: 40.7128, // Replace with actual latitude
-      longitude: -74.0060 // Replace with actual longitude
-    },
-    openingHoursSpecification: [
-      {
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: [
-          'Monday',
-          'Tuesday',
-          'Wednesday',
-          'Thursday',
-          'Friday'
-        ],
-        opens: '09:00',
-        closes: '17:00'
-      }
-    ],
+      latitude: coordinates.latitude || 40.7128,
+      longitude: coordinates.longitude || -74.0060
+    } : undefined,
+    openingHoursSpecification: businessHours.map(hours => ({
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: hours.days,
+      opens: hours.opens,
+      closes: hours.closes
+    })),
     sameAs: siteSettings?.socialLinks?.map(link => link.url) || []
   };
 }
